@@ -35,25 +35,34 @@ variable "allow_icmp" {
   default = "true"
 }
 
-// Private variable for boolean type conversion.
-variable "icmp_action" {
-  default = {
-    "true"  = "1"
-    "false" = "0"
-  }
+// The description field for the Security Group. The default is the built-in Terraform default:
+// "Managed by Terraform".
+variable "description" {
+  type    = "string"
+  default = "Managed by Terraform" // Because you can't have a null value
+}
+
+// A value for the `Name` tag. If not set, the tag is not created.
+variable "display_name" {
+  type    = "string"
+  default = ""
+}
+
+locals {
+  tag_keys   = "${split(",", length(var.display_name) == 0 ? "project_path" : "project_path,Name")}"
+  tag_values = "${split(",", length(var.display_name) == 0 ? "${var.project_path}" : "${var.project_path},${var.display_name}")}"
 }
 
 resource "aws_security_group" "security_group" {
-  vpc_id = "${var.vpc_id}"
+  vpc_id      = "${var.vpc_id}"
+  description = "${var.description}"
 
-  tags {
-    project_path = "${var.project_path}"
-  }
+  tags = "${zipmap(local.tag_keys,local.tag_values)}"
 }
 
 // security_group_icmp_in allows ICMP in if allow_icmp is set to "true".
 resource "aws_security_group_rule" "security_group_icmp_in" {
-  count             = "${lookup(var.icmp_action, var.allow_icmp)}"
+  count             = "${var.allow_icmp == true ? 1 : 0}"
   type              = "ingress"
   protocol          = "icmp"
   cidr_blocks       = ["0.0.0.0/0"]
@@ -64,7 +73,7 @@ resource "aws_security_group_rule" "security_group_icmp_in" {
 
 // security_group_icmp_out allows ICMP out if allow_icmp is set to "true".
 resource "aws_security_group_rule" "security_group_icmp_out" {
-  count             = "${lookup(var.icmp_action, var.allow_icmp)}"
+  count             = "${var.allow_icmp == true ? 1 : 0}"
   type              = "egress"
   protocol          = "icmp"
   cidr_blocks       = ["0.0.0.0/0"]
