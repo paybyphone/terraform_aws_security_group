@@ -17,6 +17,10 @@
  * 
  */
 
+terraform {
+  required_version = ">= 0.10.6"
+}
+
 // The path of the project in VCS.
 variable "project_path" {
   type = "string"
@@ -49,15 +53,19 @@ variable "display_name" {
 }
 
 locals {
-  tag_keys   = "${split(",", length(var.display_name) == 0 ? "project_path" : "project_path,Name")}"
-  tag_values = "${split(",", length(var.display_name) == 0 ? "${var.project_path}" : "${var.project_path},${var.display_name}")}"
+  default_tags   = "${map("project_path", "${var.project_path}")}"
+  name_tag_key   = "${compact(split(",", length(var.display_name) == 0 ? "" : "Name"))}"
+  name_tag_value = "${compact(split(",", length(var.display_name) == 0 ? "" : "${var.display_name}"))}"
 }
 
 resource "aws_security_group" "security_group" {
   vpc_id      = "${var.vpc_id}"
   description = "${var.description}"
 
-  tags = "${zipmap(local.tag_keys,local.tag_values)}"
+  tags = "${merge(
+    local.default_tags,
+    zipmap(local.name_tag_key, local.name_tag_value)
+    )}"
 }
 
 // security_group_icmp_in allows ICMP in if allow_icmp is set to "true".
@@ -85,6 +93,7 @@ resource "aws_security_group_rule" "security_group_icmp_out" {
 // security_group_icmp_type_3_in allows ICMP type 3 (destination unreachable)
 // inbound.
 resource "aws_security_group_rule" "security_group_icmp_type_3_in" {
+  description       = "ICMP destination unreachable messages inbound"
   type              = "ingress"
   protocol          = "icmp"
   cidr_blocks       = ["0.0.0.0/0"]
@@ -96,6 +105,7 @@ resource "aws_security_group_rule" "security_group_icmp_type_3_in" {
 // security_group_icmp_type_3_out allows ICMP type 3 (destination unreachable)
 // outbound.
 resource "aws_security_group_rule" "security_group_icmp_type_3_out" {
+  description       = "ICMP destination unreachable messages outbound"
   type              = "egress"
   protocol          = "icmp"
   cidr_blocks       = ["0.0.0.0/0"]
