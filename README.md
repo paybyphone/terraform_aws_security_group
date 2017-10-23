@@ -18,12 +18,13 @@ Usage Example:
 
 ## Inputs
 
-| Name | Description | Default | Required |
-|------|-------------|:-----:|:-----:|
-| project_path | The path of the project in VCS. | - | yes |
-| vpc_id | The ID of the VPC. | - | yes |
-| allow_icmp | Controls whether or not to allow ALL ICMP. If this is set to "false", ICMP type 3 (host unreachable) is still allowed to facilitate path MTU discovery and other host path issues. | `true` | no |
-| icmp_action | Private variable for boolean type conversion. | `<map>` | no |
+| Name | Description | Type | Default | Required |
+|------|-------------|:----:|:-----:|:-----:|
+| allow_icmp | Controls whether or not to allow ALL ICMP. If this is set to "false", ICMP type 3 (host unreachable) is still allowed to facilitate path MTU discovery and other host path issues. | string | `true` | no |
+| description | The description field for the Security Group. The default is the built-in Terraform default: "Managed by Terraform". | string | `Managed by Terraform` | no |
+| display_name | A value for the `Name` tag. If not set, the tag is not created. | string | `` | no |
+| project_path | The path of the project in VCS. | string | - | yes |
+| vpc_id | The ID of the VPC. | string | - | yes |
 
 ## Outputs
 

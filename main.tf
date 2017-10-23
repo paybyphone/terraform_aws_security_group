@@ -17,6 +17,10 @@
  * 
  */
 
+terraform {
+  required_version = ">= 0.10.6"
+}
+
 // The path of the project in VCS.
 variable "project_path" {
   type = "string"
@@ -35,25 +39,38 @@ variable "allow_icmp" {
   default = "true"
 }
 
-// Private variable for boolean type conversion.
-variable "icmp_action" {
-  default = {
-    "true"  = "1"
-    "false" = "0"
-  }
+// The description field for the Security Group. The default is the built-in Terraform default:
+// "Managed by Terraform".
+variable "description" {
+  type    = "string"
+  default = "Managed by Terraform" // Because you can't have a null value
+}
+
+// A value for the `Name` tag. If not set, the tag is not created.
+variable "display_name" {
+  type    = "string"
+  default = ""
+}
+
+locals {
+  default_tags   = "${map("project_path", "${var.project_path}")}"
+  name_tag_key   = "${compact(split(",", length(var.display_name) == 0 ? "" : "Name"))}"
+  name_tag_value = "${compact(split(",", length(var.display_name) == 0 ? "" : "${var.display_name}"))}"
 }
 
 resource "aws_security_group" "security_group" {
-  vpc_id = "${var.vpc_id}"
+  vpc_id      = "${var.vpc_id}"
+  description = "${var.description}"
 
-  tags {
-    project_path = "${var.project_path}"
-  }
+  tags = "${merge(
+    local.default_tags,
+    zipmap(local.name_tag_key, local.name_tag_value)
+    )}"
 }
 
 // security_group_icmp_in allows ICMP in if allow_icmp is set to "true".
 resource "aws_security_group_rule" "security_group_icmp_in" {
-  count             = "${lookup(var.icmp_action, var.allow_icmp)}"
+  count             = "${var.allow_icmp == true ? 1 : 0}"
   type              = "ingress"
   protocol          = "icmp"
   cidr_blocks       = ["0.0.0.0/0"]
@@ -64,7 +81,7 @@ resource "aws_security_group_rule" "security_group_icmp_in" {
 
 // security_group_icmp_out allows ICMP out if allow_icmp is set to "true".
 resource "aws_security_group_rule" "security_group_icmp_out" {
-  count             = "${lookup(var.icmp_action, var.allow_icmp)}"
+  count             = "${var.allow_icmp == true ? 1 : 0}"
   type              = "egress"
   protocol          = "icmp"
   cidr_blocks       = ["0.0.0.0/0"]
@@ -76,6 +93,7 @@ resource "aws_security_group_rule" "security_group_icmp_out" {
 // security_group_icmp_type_3_in allows ICMP type 3 (destination unreachable)
 // inbound.
 resource "aws_security_group_rule" "security_group_icmp_type_3_in" {
+  description       = "ICMP destination unreachable messages inbound"
   type              = "ingress"
   protocol          = "icmp"
   cidr_blocks       = ["0.0.0.0/0"]
@@ -87,6 +105,7 @@ resource "aws_security_group_rule" "security_group_icmp_type_3_in" {
 // security_group_icmp_type_3_out allows ICMP type 3 (destination unreachable)
 // outbound.
 resource "aws_security_group_rule" "security_group_icmp_type_3_out" {
+  description       = "ICMP destination unreachable messages outbound"
   type              = "egress"
   protocol          = "icmp"
   cidr_blocks       = ["0.0.0.0/0"]
